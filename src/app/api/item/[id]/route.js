@@ -14,7 +14,7 @@ export async function GET (req, { params }) {
     const { id } = await params;
     try {
         const client = await getClientPromise();
-        const db = client.db("wad-01");
+        const db = client.db("web_app_dev");
         const result = await db.collection("item").findOne({_id: new ObjectId(id)});
         console.log("==> result", result);
         return NextResponse.json(result, {
@@ -42,48 +42,45 @@ export async function PATCH (req, { params }) {
     if (data.price != null) partialUpdate.itemPrice = data.price;
     try {
         const client = await getClientPromise();
-        const db = client.db("wad-01");
+        const db = client.db("web_app_dev");
         const existedData = await db.collection("item").findOne({_id: new
 ObjectId(id)});
     const updateData = {...existedData, ...partialUpdate};
-    const updatedResult = await db.collection("item").updateOne({_id: new
-ObjectId(id)}, {$set: updateData});
-    return NextResponse.json(updatedResult, {
-    status: 200,
-    headers: corsHeaders
-    })
-}
-catch (exception) {
-    const errorMsg = exception.toString();
-    return NextResponse.json({
-    message: errorMsg
-    }, {
-    status: 400,
-    headers: corsHeaders
-    })
+    const updatedResult = await db.collection("item").updateOne({_id: new ObjectId(id)}, {$set: updateData});
+        return NextResponse.json(updatedResult, {
+            status: 200,
+            headers: corsHeaders
+        });
+    } catch (exception) {
+        const errorMsg = exception.toString();
+        return NextResponse.json({
+            message: errorMsg
+        }, {
+            status: 400,
+            headers: corsHeaders
+        });
     }
 }
+
 export async function PUT (req, { params }) {
     const { id } = await params;
     const data = await req.json(); //assume that it contain whole item data...
     try {
         const client = await getClientPromise();
-        const db = client.db("wad-01");
-        const updatedResult = await db.collection("item").updateOne({_id: new
-ObjectId(id)}, {$set: data});
-    return NextResponse.json(updatedResult, {
-    status: 200,
-    headers: corsHeaders
-})
-}
-catch (exception) {
-    console.log("exception", exception.toString());
-    const errorMsg = exception.toString();
-    return NextResponse.json({
-        message: errorMsg
-    }, {
-    status: 400,
-    headers: corsHeaders
-    })
-}
+        const db = client.db("web_app_dev");
+        const updatedResult = await db.collection("item").updateOne({_id: new ObjectId(id)}, {$set: data});
+        return NextResponse.json(updatedResult, {
+            status: 200,
+            headers: corsHeaders
+        });
+    } catch (exception) {
+        console.log("exception", exception.toString());
+        const errorMsg = exception.toString();
+        return NextResponse.json({
+            message: errorMsg
+        }, {
+            status: 400,
+            headers: corsHeaders
+        });
+    }
 }
