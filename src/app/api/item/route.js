@@ -2,61 +2,85 @@ import corsHeaders from "@/lib/cors";
 import { getClientPromise } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 
-const DB_NAME = "wad-01";
-const COLLECTION_NAME = "item";
+const DB_NAME = "wad-01";     // <-- your database name
+const COLLECTION = "item";         // <-- your collection name
 
 export async function OPTIONS() {
-  return new Response(null, {
-    status: 200,
-    headers: corsHeaders,
-  });
+  return new Response(null, { status: 200, headers: corsHeaders });
 }
 
-export async function GET() {
+/**
+ * GET /api/item?page=1&limit=10
+ */
+export async function GET(req) {
   try {
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, Number(searchParams.get("page") || 1));
+    const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 10)));
+    const skip = (page - 1) * limit;
+
     const client = await getClientPromise();
     const db = client.db(DB_NAME);
 
-    const result = await db.collection(COLLECTION_NAME).find({}).toArray();
+    const total = await db.collection(COLLECTION).countDocuments({});
+    const data = await db
+      .collection(COLLECTION)
+      .find({})
+      .sort({ _id: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
 
-    return NextResponse.json(result, { headers: corsHeaders });
+    return NextResponse.json(
+      {
+        data,
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+      { headers: corsHeaders }
+    );
   } catch (e) {
     return NextResponse.json(
       { message: e?.toString?.() ?? "Unknown error" },
-      { status: 400, headers: corsHeaders }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
 
+/**
+ * POST /api/item
+ */
 export async function POST(req) {
   try {
-    const data = await req.json();
-    const { name, price, category } = data;
+    const body = await req.json();
 
-    if (!name || !category || price === undefined || price === null) {
+    const itemName = (body.itemName ?? "").trim();
+    const itemCategory = (body.itemCategory ?? "").trim();
+    const itemPrice = Number(body.itemPrice);
+    const status = String(body.status ?? "ACTIVE").trim().toUpperCase();
+
+    if (!itemName || !itemCategory || Number.isNaN(itemPrice)) {
       return NextResponse.json(
-        { message: "Missing required fields: name, price, category" },
+        { message: "Missing/invalid fields: itemName, itemCategory, itemPrice" },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    // Optional: ensure price is numeric
-    const numericPrice = Number(price);
-    if (Number.isNaN(numericPrice)) {
-      return NextResponse.json(
-        { message: "price must be a number" },
-        { status: 400, headers: corsHeaders }
-      );
-    }
+    const allowedStatus = new Set(["ACTIVE", "INACTIVE"]);
+    const safeStatus = allowedStatus.has(status) ? status : "ACTIVE";
 
     const client = await getClientPromise();
     const db = client.db(DB_NAME);
 
-    const result = await db.collection(COLLECTION_NAME).insertOne({
-      itemName: name,
-      itemCategory: category,
-      itemPrice: numericPrice,
-      status: "ACTIVE",
+    const result = await db.collection(COLLECTION).insertOne({
+      itemName,
+      itemCategory,
+      itemPrice,
+      status: safeStatus,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     return NextResponse.json(
@@ -66,7 +90,7 @@ export async function POST(req) {
   } catch (e) {
     return NextResponse.json(
       { message: e?.toString?.() ?? "Unknown error" },
-      { status: 400, headers: corsHeaders }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
