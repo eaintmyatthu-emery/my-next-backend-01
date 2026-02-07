@@ -53,8 +53,16 @@ export async function GET(req) {
  * POST /api/item
  */
 export async function POST(req) {
+  let body = {};
   try {
-    const body = await req.json();
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { message: "Invalid JSON body" },
+      { status: 400, headers: corsHeaders }
+    );
+  }
+  try {
 
     const itemName = (body.itemName ?? "").trim();
     const itemCategory = (body.itemCategory ?? "").trim();
